@@ -27,10 +27,15 @@ jobs:
         id: scope
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
-          # Edgible's own maintainers also change this repo's files (its guide, templates, workflows).
-          MAINTAINER: ${{ contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association) }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # Edgible's own maintainers also change this repo's files (its guide, templates, workflows):
+          # someone with write access. Any failure to ask counts as not a maintainer.
+          perm=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$AUTHOR/permission" --jq .permission 2>/dev/null || echo none)
+          case "$perm" in admin|maintain|write) MAINTAINER=true ;; *) MAINTAINER=false ;; esac
+          echo "author $AUTHOR: $perm"
           files=$(git diff --name-only "$BASE"...HEAD)
           [ -n "$files" ] || { echo "::error::this pull request changes no files"; exit 1; }
           echo "$files"
