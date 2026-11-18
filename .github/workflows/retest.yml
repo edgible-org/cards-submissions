@@ -5,7 +5,7 @@ name: retest
 # for that one card on the fleet. Nothing in the issue is run: only the card's name is read, and
 # it must be an official card in edgible-org/cards. To keep the fleet's time for real cases, a card tested
 # today is not retested, and at most MAX_PER_DAY retests start in 24 hours; the rest wait for a
-# maintainer. The regression closes the issue when the card passes (see regression.yml).
+# maintainer. The regression (in cards-source) closes the issue when the card passes.
 
 on:
   issues:
@@ -60,4 +60,4 @@ jobs:
             exit 0
           fi
           GH_TOKEN="$SOURCE_TOKEN" gh workflow run regression.yml -R edgible-org/cards-source --ref main -f only="$card"   # --ref: the token cannot read the default branch
-          reply "Started the regression for \`$card\` on Edgible's test machines. It queues behind any run in progress. This issue closes by itself when the card passes; if it fails, a \`Regression: $card fails\` issue opens with the failing step."
+          reply "Started the regression for \`$card\` on Edgible's test machines. It queues behind any run in progress. This issue closes by itself when the card passes. If it fails, the card's page on https://cards.edgible.org/$card/ says so, and a maintainer looks at what failed."
