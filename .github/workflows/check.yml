@@ -24,14 +24,26 @@ jobs:
           repository: edgible-org/card-kit
           path: .card-kit
       - name: One card folder, nothing else
-        if: github.event_name == 'pull_request'
+        id: scope
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # Edgible's own maintainers also change this repo's files (its guide, templates, workflows):
+          # someone with write access. Any failure to ask counts as not a maintainer.
+          perm=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$AUTHOR/permission" --jq .permission 2>/dev/null || echo none)
+          case "$perm" in admin|maintain|write) MAINTAINER=true ;; *) MAINTAINER=false ;; esac
+          echo "author $AUTHOR: $perm"
           files=$(git diff --name-only "$BASE"...HEAD)
           [ -n "$files" ] || { echo "::error::this pull request changes no files"; exit 1; }
           echo "$files"
+          if [ "$MAINTAINER" = true ] && printf '%s\n' "$files" | grep -qv '^[a-z0-9][a-z0-9-]*/'; then
+            echo "a maintainer's change to the repo itself"
+            if printf '%s\n' "$files" | grep -q '^[a-z0-9][a-z0-9-]*/'; then echo "::error::keep a card and the repo's own files in separate pull requests"; exit 1; fi
+            echo "card=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           if printf '%s\n' "$files" | grep -qv '^[a-z0-9][a-z0-9-]*/'; then
             echo "::error::a submission changes one card folder only. Files outside a card folder (top-level files, .github/) are maintained by Edgible: say in an issue what should change."
             exit 1
@@ -42,6 +54,8 @@ jobs:
             exit 1
           fi
           [ -f "$dirs/card.yml" ] || { echo "::error::$dirs has no card.yml"; exit 1; }
+          echo "card=true" >> "$GITHUB_OUTPUT"
       - name: check-cards
+        if: steps.scope.outputs.card == 'true'
         # The same check every official card passes; the maintainer reads the rest before promoting.
         run: .card-kit/run check-cards --fresh
