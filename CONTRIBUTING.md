@@ -1,0 +1,93 @@
+# Contributing a card
+
+There are three ways to help: add a card, fix one, or ask for one. Each follows the format in the [cards README](https://github.com/edgible-org/cards#what-a-card-is) and in [edgible-org/card-kit](https://github.com/edgible-org/card-kit). What is written there wins over anything here.
+
+## Ask for a card
+
+Open an issue here from one of the two templates:
+
+- **App card request,** for one self-hosted app. Name the app and link it, ideally on [awesome-selfhosted](https://awesome-selfhosted.net). Say what you would use it for and who calls it: a browser, the app's own phone or desktop apps, or another machine. That decides the auth mode.
+- **Pattern card request,** for several apps wired together. Say what the pattern is for, which apps it joins, and how they reach each other. Link each app's card if it has one.
+
+If you tried to build it, say where you got stuck.
+
+## Add a card
+
+**Wrote the app yourself?** Start at [Add your app](ADD-YOUR-APP.md). The edgible-cards skill runs card-kit's `check-app` on your app, tells you what a card needs (required and nice to have), and helps you build what is missing before you write the card. You can run it yourself: `python3 ../card-kit/check-app.py <your app's folder> --image <name:tag> --steward <your GitHub name>`.
+
+You need Docker. To test a card, which every app card must be, you also need an Edgible account with a serving device and the `edgible` CLI logged in. `test-card` runs the whole lifecycle on that device.
+
+1. **Check the app and the name.** An app card's app must not be on the cards README's [What is not an app card](https://github.com/edgible-org/cards#what-is-not-an-app-card) list. The official cards are in [edgible-org/cards](https://github.com/edgible-org/cards). A 404 from this command means the name is free:
+
+   ```bash
+   gh api repos/edgible-org/cards/contents/<name> --jq .name
+   ```
+
+   If the name is taken, edit the card that is already there, or pick a name that says how yours differs, such as `n8n-sqlite`.
+
+2. **Fork and clone this repo,** with card-kit beside it. Work on a branch, never on `main`. To build on an official card, or to fix one, copy its folder in from [edgible-org/cards](https://github.com/edgible-org/cards):
+
+   ```bash
+   gh repo fork edgible-org/cards-submissions --clone
+   git clone https://github.com/edgible-org/card-kit
+   git clone --depth 1 https://github.com/edgible-org/cards   # the official cards, to copy from
+   cd cards-submissions && git checkout -b <name>
+   ```
+
+   A pull request here changes one card folder and nothing else.
+
+3. **Write the card.** Copy the card closest to yours and change the names, so every card reads the same way. Set `metadata.type` to `app` or `pattern`. The rules are in the cards README's [What a card is](https://github.com/edgible-org/cards#what-a-card-is) and card-kit's [Conventions](https://github.com/edgible-org/card-kit#conventions). A pattern starts from the app cards of its apps. Write the README with `card-readme`:
+
+   ```bash
+   ../card-kit/run card-readme <name> <name>-readme.yml
+   ```
+
+   The `<name>-readme.yml` it reads holds the parts only you know. Keep it out of the commit.
+
+4. **Test it** on your serving device until it passes, and commit the `test.yml` it writes. An app card must have one. A pattern does not have to, but a reviewer trusts one that does, and the nightly regression only tests cards that carry it. Put the values only a person may fill in `test/inputs.env`, and the card's own end-to-end checks in `test/<check>.sh`:
+
+   ```bash
+   python3 ../card-kit/test-card.py <name> --device <your-device>
+   ../card-kit/run check-cards --fresh
+   ```
+
+   `check-cards --fresh` fails a card whose files changed after its `test.yml`, so test again after any change. A picture is optional: `../card-kit/run card-image <name>`. So is an icon, the app's own logo for the catalog site: `../card-kit/run card-icon <name>` fetches it from the open icon sets, and without one the site shows the Edgible symbol.
+
+5. **Name a steward,** or leave it out. `metadata.steward` in card.yml is the GitHub user or organisation that will review changes to the card and fix it when its test fails. The site shows it on the card's page. A card with none is listed as having no steward, which is allowed, and is still tested every night. You may add `metadata.contact`, a public way to reach whoever looks after the card (an https address or an email address): it is shown beside the steward, and stays in git history for good, so use a role address or a page, not a personal or account sign-in address.
+
+6. **Check nothing private is left:** no device name, hostname, organization id, password, or your own domain, in any file.
+
+7. **Open the pull request** from your fork. The template lists the review checklist: tick each item you checked.
+
+## Fix a card
+
+Use the same steps from 2: fork, branch, copy the card's folder from edgible-org/cards, change it, `test-card`, `check-cards --fresh`, pull request. Say what was wrong and how the test shows the fix.
+
+## What happens next
+
+The pull request runs `check-cards --fresh` on GitHub's own machines. Nothing in it runs on Edgible's machines until a maintainer has read it.
+
+A maintainer reviews the checklist and the parts a test cannot judge. When it is ready, they promote it: the card is copied into Edgible's own repository and tested on Edgible's devices at the commit they read. A pass puts the card in the catalog, in [edgible-org/cards](https://github.com/edgible-org/cards) and on [cards.edgible.org](https://cards.edgible.org), and this pull request is closed with a link to the card's page. Your commit keeps your name as a co-author. If the test fails, the maintainer says what failed here, and you can push a fix.
+
+After that, the nightly regression tests the card whenever it or Edgible changes, and its result is shown on the card's page. To ask for a card to be tested again, use the **Retest a card** issue form here.
+
+## Made with an AI agent
+
+That is welcome. The [edgible-cards skill](https://github.com/edgible-org/card-kit/tree/main/skills/edgible-cards) follows this file. Say in the pull request that an agent made it. You are still the one asking for the merge, so read what it wrote.
+
+An agent working on its own for the person who wrote the app can do every step: `check-app --json` until `ready` is true, the card, `test-card` on the person's own device, then the pull request from a fork. It asks the person for what is theirs to decide: the licence, and who the steward is.
+
+## Who stands behind a card
+
+An app can be written by a person, written with an AI's help, or generated entirely by an AI. A card does not label which, and it does not need to: what matters is that a person is responsible for the card being here. Every card has one behind it.
+
+- **An Edgible account** to run or test the app on, which a person creates in their own browser and signs the CLI in to. Without one, nothing can be run or tested on Edgible, so there is no app card, public or private.
+- **A GitHub account** that opens the pull request, owned by a person or an organisation. If an agent has an account of its own, someone owns it and answers for it.
+- **A maintainer** who reads the card, and runs the fleet test on their label, before it is listed.
+- **A steward** afterwards: the person or organisation that answers for the card, named in `metadata.steward`. An agent can do the work, but it cannot be the steward. A card may have none, and is then listed as having none.
+
+An agent working alone is a way of doing the work without a person at the keyboard. It is not a way of having nobody responsible.
+
+## Licence
+
+This repository is [MIT](LICENSE). By contributing, you agree that your contribution is under the same licence. The apps a card runs keep their own licences.
